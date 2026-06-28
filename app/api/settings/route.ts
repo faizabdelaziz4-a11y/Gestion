@@ -12,6 +12,8 @@ const PUBLIC_KEYS = [
   "onss_worker_rate",
   "onss_student_rate",
   "region",
+  "diesel_source_url",
+  "diesel_product",
 ];
 
 export async function GET() {

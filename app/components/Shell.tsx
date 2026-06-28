@@ -7,6 +7,7 @@ import { api } from "./api";
 const NAV = [
   { href: "/", label: "Tableau de bord", icon: "📊" },
   { href: "/revenus", label: "CA & marge", icon: "💶" },
+  { href: "/caisse", label: "Caisse", icon: "💰" },
   { href: "/travailleurs", label: "Travailleurs", icon: "👥" },
   { href: "/horaires", label: "Horaires & km", icon: "🕒" },
   { href: "/charges", label: "Charges", icon: "🧾" },

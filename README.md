@@ -18,13 +18,16 @@ avec une vue **journalière, hebdomadaire et mensuelle**.
   - **Code d'accès** par travailleur pour l'espace à accès limité.
 - **Horaires & kilométrage** : saisie manuelle ou **import par photo**.
   - Pour les **livreurs** : km début / fin de journée → **coût diesel** calculé sur
-    **6,4 L/100 km** au **prix du diesel du jour à Liège**.
+    **6,4 L/100 km** au **prix du diesel du jour**, récupéré **automatiquement** au
+    prix officiel belge (Statbel / SPF Économie, Diesel B7 TVA incl.) ou saisi à la main.
 - **Espace travailleur (accès limité)** : pointer début / fin et **prendre en photo
   le tableau de bord** pour le kilométrage (lecture automatique si IA activée).
 - **Charges** : fixes et variables (électricité, comptable, loyer, assurance,
   marchandises…), réparties automatiquement **par jour**.
 - **CA & marge** : saisie quotidienne du chiffre d'affaires et du % de marge →
   marge commerciale → **indicateur de bénéfice ou de perte**.
+- **Contrôle de caisse** : fond de caisse en début et cash compté en fin de soirée
+  → **écart de caisse** (surplus / manquant) pour vérifier que le cash est correct.
 - **Assistant IA** (optionnel) : lecture du compteur kilométrique et import
   d'horaire depuis une photo via l'API Claude.
 
@@ -114,7 +117,8 @@ npm test   # logique de paie (net↔brut, statuts, coût employeur)
 ## Limites connues / pistes
 
 - Estimation de paie (voir ci-dessus) — brancher un calcul officiel si besoin.
-- Prix diesel : saisie manuelle du prix du jour (+ valeur par défaut). Possibilité
-  de brancher une source officielle (prix maximum SPF Économie).
+- Prix diesel : récupération automatique du prix officiel (bouton dans *Réglages*,
+  source Statbel/SPF Économie paramétrable), avec repli en saisie manuelle / valeur
+  par défaut si la source est injoignable.
 - Authentification simple par mot de passe / code — suffisante pour un usage
   commerce ; renforcer (utilisateurs multiples, 2FA) pour un déploiement large.

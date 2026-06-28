@@ -83,6 +83,14 @@ function migrate(db: Database.Database) {
       price REAL NOT NULL                              -- €/litre à Liège
     );
 
+    CREATE TABLE IF NOT EXISTS cash (
+      date          TEXT PRIMARY KEY,                  -- YYYY-MM-DD
+      opening       REAL NOT NULL DEFAULT 0,           -- fond de caisse (début)
+      expected_cash REAL NOT NULL DEFAULT 0,           -- ventes espèces attendues (soirée)
+      closing       REAL NOT NULL DEFAULT 0,           -- caisse comptée (fin de soirée)
+      note          TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
     CREATE INDEX IF NOT EXISTS idx_shifts_worker ON shifts(worker_id);
     CREATE INDEX IF NOT EXISTS idx_charges_date ON charges(date);
@@ -100,6 +108,9 @@ function seedDefaults(db: Database.Database) {
     onss_worker_rate: "0.1307", // cotisation travailleur (employé/ouvrier)
     onss_student_rate: "0.0271", // cotisation de solidarité étudiant
     region: "Liège",
+    diesel_source_url:
+      "https://bestat.statbel.fgov.be/bestat/api/views/9e9cf394-6c54-4d81-8013-7124a8c4bf15/result/JSON",
+    diesel_product: "Diesel B7 (€/L)", // produit officiel à récupérer
   };
   const insert = db.prepare(
     "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)"

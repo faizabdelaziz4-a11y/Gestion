@@ -11,6 +11,8 @@ interface Settings {
   onss_worker_rate: string;
   onss_student_rate: string;
   region: string;
+  diesel_source_url: string;
+  diesel_product: string;
 }
 
 interface Price {
@@ -25,6 +27,8 @@ export default function ReglagesPage() {
   const [prices, setPrices] = useState<Price[]>([]);
   const [pf, setPf] = useState({ date: todayISO(), price: "" });
   const [msg, setMsg] = useState("");
+  const [fetching, setFetching] = useState(false);
+  const [fetchMsg, setFetchMsg] = useState("");
 
   async function load() {
     const r = await api<{ settings: Settings; aiEnabled: boolean }>("/api/settings");
@@ -58,6 +62,25 @@ export default function ReglagesPage() {
     });
     setPf({ ...pf, price: "" });
     load();
+  }
+
+  async function fetchOfficial() {
+    setFetching(true);
+    setFetchMsg("");
+    try {
+      const r = await api<{ date: string; price: number; source: string; product: string }>(
+        "/api/diesel-prices/fetch",
+        { method: "POST" }
+      );
+      setFetchMsg(
+        `Prix officiel récupéré : ${eur(r.price)}/L (${r.product}, ${r.date} — ${r.source})`
+      );
+      load();
+    } catch (e: any) {
+      setFetchMsg(e.message);
+    } finally {
+      setFetching(false);
+    }
   }
 
   return (
@@ -137,6 +160,52 @@ export default function ReglagesPage() {
 
       <div className="card">
         <h2 className="font-semibold mb-3">Prix du diesel à {s.region} (journalier)</h2>
+
+        {/* Récupération automatique du prix officiel */}
+        <div className="bg-brand/5 border border-brand/20 rounded-lg p-3 mb-4 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm">
+              <div className="font-medium text-brand">Prix officiel automatique</div>
+              <div className="text-xs text-slate-500">
+                Source : Statbel / SPF Économie — produit « {s.diesel_product} »
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-primary text-sm"
+              onClick={fetchOfficial}
+              disabled={fetching}
+            >
+              {fetching ? "Récupération…" : "Récupérer le prix officiel du jour"}
+            </button>
+          </div>
+          {fetchMsg && <p className="text-xs text-slate-600">{fetchMsg}</p>}
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-400">Source avancée</summary>
+            <div className="grid md:grid-cols-2 gap-2 mt-2">
+              <div>
+                <label className="label">Produit officiel</label>
+                <input
+                  className="input"
+                  value={s.diesel_product}
+                  onChange={(e) => up("diesel_product", e.target.value)}
+                  onBlur={save}
+                />
+              </div>
+              <div>
+                <label className="label">URL source (be.STAT JSON)</label>
+                <input
+                  className="input"
+                  value={s.diesel_source_url}
+                  onChange={(e) => up("diesel_source_url", e.target.value)}
+                  onBlur={save}
+                />
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <p className="text-xs text-slate-500 mb-2">Ou saisie manuelle :</p>
         <form onSubmit={addPrice} className="grid grid-cols-3 gap-2 mb-4">
           <input type="date" className="input" value={pf.date} onChange={(e) => setPf({ ...pf, date: e.target.value })} />
           <input
