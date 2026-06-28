@@ -1,6 +1,8 @@
 /** Helpers communs aux routes API. */
 import { NextResponse } from "next/server";
 import { getSession, Session } from "./auth";
+import { getActiveBusiness } from "./business";
+import { Business } from "./db";
 
 export function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
@@ -26,4 +28,11 @@ export async function requireAuth(): Promise<Session | NextResponse> {
 
 export function isResponse(x: unknown): x is NextResponse {
   return x instanceof NextResponse;
+}
+
+/** Exige une session propriétaire et renvoie le commerce actif (en-tête). */
+export async function requireOwnerBusiness(): Promise<Business | NextResponse> {
+  const s = await getSession();
+  if (!s || s.role !== "owner") return bad("Accès réservé au propriétaire", 401);
+  return getActiveBusiness();
 }

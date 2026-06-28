@@ -1,6 +1,9 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { json, bad, requireOwner, isResponse } from "@/lib/api";
+import { json, bad, requireOwnerBusiness, isResponse } from "@/lib/api";
+
+const SCOPE =
+  "id = @id AND worker_id IN (SELECT id FROM workers WHERE business_id = @business_id)";
 
 const FIELDS = [
   "date",
@@ -16,12 +19,12 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const guard = await requireOwner();
-  if (isResponse(guard)) return guard;
+  const biz = await requireOwnerBusiness();
+  if (isResponse(biz)) return biz;
   const { id } = await params;
   const b = await req.json().catch(() => ({}));
   const sets: string[] = [];
-  const values: any = { id };
+  const values: any = { id, business_id: biz.id };
   for (const f of FIELDS) {
     if (b[f] !== undefined) {
       sets.push(`${f} = @${f}`);
@@ -29,7 +32,7 @@ export async function PATCH(
     }
   }
   if (!sets.length) return bad("Aucun champ à modifier");
-  db.prepare(`UPDATE shifts SET ${sets.join(", ")} WHERE id = @id`).run(values);
+  db.prepare(`UPDATE shifts SET ${sets.join(", ")} WHERE ${SCOPE}`).run(values);
   return json({ ok: true });
 }
 
@@ -37,9 +40,9 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const guard = await requireOwner();
-  if (isResponse(guard)) return guard;
+  const biz = await requireOwnerBusiness();
+  if (isResponse(biz)) return biz;
   const { id } = await params;
-  db.prepare("DELETE FROM shifts WHERE id = ?").run(id);
+  db.prepare(`DELETE FROM shifts WHERE ${SCOPE}`).run({ id, business_id: biz.id });
   return json({ ok: true });
 }

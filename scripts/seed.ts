@@ -2,9 +2,20 @@
  * Données de démonstration. Lancer : npm run seed
  * (n'écrase rien d'existant si déjà présent grâce aux INSERT OR IGNORE).
  */
-import { db, setSetting } from "../lib/db";
+import { db } from "../lib/db";
 
-setSetting("business_name", "Friterie du Coin");
+// Renomme le commerce par défaut + ajoute un 2e commerce de démonstration.
+db.prepare("UPDATE businesses SET name = ? WHERE id = 1").run("Friterie du Coin");
+const hasSecond = db.prepare("SELECT 1 FROM businesses WHERE id = 2").get();
+if (!hasSecond) {
+  db.prepare(
+    "INSERT INTO businesses (id, name, region, ingest_token) VALUES (2, ?, ?, ?)"
+  ).run(
+    "Snack Centre-Ville",
+    "Liège",
+    require("node:crypto").randomBytes(16).toString("hex")
+  );
+}
 
 const insertWorker = db.prepare(
   `INSERT INTO workers (name, poste, statut, pay_type, pay_basis, base_rate, access_code)

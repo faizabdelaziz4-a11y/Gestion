@@ -1,13 +1,16 @@
 import { db } from "@/lib/db";
-import { json, bad, requireOwner, isResponse } from "@/lib/api";
+import { json, bad, requireOwnerBusiness, isResponse } from "@/lib/api";
 import { fetchOfficialDieselPrice } from "@/lib/dieselSource";
 
-// Récupère le prix officiel du diesel (Statbel) et l'enregistre.
+// Récupère le prix officiel du diesel (Statbel) et l'enregistre (table globale).
 export async function POST() {
-  const guard = await requireOwner();
-  if (isResponse(guard)) return guard;
+  const biz = await requireOwnerBusiness();
+  if (isResponse(biz)) return biz;
 
-  const result = await fetchOfficialDieselPrice();
+  const result = await fetchOfficialDieselPrice({
+    url: biz.diesel_source_url,
+    product: biz.diesel_product,
+  });
   if (!result) {
     return bad(
       "Prix officiel indisponible (source injoignable). Saisissez le prix manuellement.",

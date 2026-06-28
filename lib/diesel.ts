@@ -1,5 +1,5 @@
 /** Calcul du coût diesel pour les livreurs. */
-import { db, getNumberSetting } from "./db";
+import { db } from "./db";
 
 export interface DieselResult {
   km: number;
@@ -8,8 +8,13 @@ export interface DieselResult {
   cost: number;
 }
 
-/** Prix du diesel à une date : prix saisi du jour, sinon le plus récent connu, sinon défaut. */
-export function dieselPrice(date: string): number {
+export interface DieselConfig {
+  consumption: number; // L / 100 km
+  defaultPrice: number; // €/L de repli
+}
+
+/** Prix du diesel (table globale, prix officiel national) à une date. */
+export function dieselPrice(date: string, fallback: number): number {
   const exact = db
     .prepare("SELECT price FROM diesel_prices WHERE date = ?")
     .get(date) as { price: number } | undefined;
@@ -18,17 +23,16 @@ export function dieselPrice(date: string): number {
     .prepare("SELECT price FROM diesel_prices WHERE date <= ? ORDER BY date DESC LIMIT 1")
     .get(date) as { price: number } | undefined;
   if (recent) return recent.price;
-  return getNumberSetting("default_diesel_price", 1.75);
+  return fallback;
 }
 
 /**
- * Coût diesel pour une distance, consommation paramétrable (def. 6,4 L/100 km),
- * au prix du diesel du jour à Liège.
+ * Coût diesel pour une distance, consommation par commerce (def. 6,4 L/100 km),
+ * au prix du diesel du jour.
  */
-export function dieselCost(km: number, date: string): DieselResult {
-  const consumption = getNumberSetting("diesel_consumption", 6.4); // L/100km
-  const pricePerLiter = dieselPrice(date);
-  const liters = (Math.max(0, km) * consumption) / 100;
+export function dieselCost(km: number, date: string, cfg: DieselConfig): DieselResult {
+  const pricePerLiter = dieselPrice(date, cfg.defaultPrice);
+  const liters = (Math.max(0, km) * cfg.consumption) / 100;
   return {
     km: Math.max(0, km),
     liters,

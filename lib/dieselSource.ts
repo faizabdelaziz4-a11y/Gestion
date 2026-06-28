@@ -5,11 +5,9 @@
  * Le SPF Économie calcule chaque jour ouvrable le prix maximum officiel.
  * On prend le « Diesel B7 » TVA incluse (prix payé à la pompe).
  *
- * URL et produit paramétrables via les réglages (diesel_source_url,
- * diesel_product). 100 % optionnel : en cas d'échec réseau, on garde la
- * saisie manuelle / le prix par défaut.
+ * URL et produit paramétrables par commerce. 100 % optionnel : en cas d'échec
+ * réseau, on garde la saisie manuelle / le prix par défaut.
  */
-import { getSetting } from "./db";
 
 const DEFAULT_URL =
   "https://bestat.statbel.fgov.be/bestat/api/views/9e9cf394-6c54-4d81-8013-7124a8c4bf15/result/JSON";
@@ -43,9 +41,12 @@ interface Fact {
 }
 
 /** Récupère le prix officiel du diesel le plus récent. */
-export async function fetchOfficialDieselPrice(): Promise<OfficialPrice | null> {
-  const url = getSetting("diesel_source_url", DEFAULT_URL) || DEFAULT_URL;
-  const product = getSetting("diesel_product", DEFAULT_PRODUCT) || DEFAULT_PRODUCT;
+export async function fetchOfficialDieselPrice(opts?: {
+  url?: string;
+  product?: string;
+}): Promise<OfficialPrice | null> {
+  const url = opts?.url || DEFAULT_URL;
+  const product = opts?.product || DEFAULT_PRODUCT;
 
   try {
     const ctrl = new AbortController();

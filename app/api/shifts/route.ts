@@ -1,27 +1,33 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/db";
-import { json, bad, requireOwner, isResponse } from "@/lib/api";
+import { db, Business } from "@/lib/db";
+import { json, bad, requireOwnerBusiness, isResponse } from "@/lib/api";
 import { shiftHours, rangeFor } from "@/lib/time";
 import { shiftKm, dieselCost } from "@/lib/diesel";
 
-function enrich(s: any) {
+function enrich(s: any, biz: Business) {
   const hours = shiftHours(s.start_time, s.end_time, s.break_minutes);
   const km = shiftKm(s.km_start, s.km_end);
-  const diesel = km > 0 ? dieselCost(km, s.date) : null;
+  const diesel =
+    km > 0
+      ? dieselCost(km, s.date, {
+          consumption: biz.diesel_consumption,
+          defaultPrice: biz.default_diesel_price,
+        })
+      : null;
   return { ...s, hours: Math.round(hours * 100) / 100, km, diesel };
 }
 
 export async function GET(req: NextRequest) {
-  const guard = await requireOwner();
-  if (isResponse(guard)) return guard;
+  const biz = await requireOwnerBusiness();
+  if (isResponse(biz)) return biz;
   const sp = req.nextUrl.searchParams;
   const date = sp.get("date");
   const period = sp.get("period") as "day" | "week" | "month" | null;
   const worker = sp.get("worker");
 
   let sql =
-    "SELECT s.*, w.name AS worker_name, w.poste FROM shifts s JOIN workers w ON w.id = s.worker_id WHERE 1=1";
-  const args: any[] = [];
+    "SELECT s.*, w.name AS worker_name, w.poste FROM shifts s JOIN workers w ON w.id = s.worker_id WHERE w.business_id = ?";
+  const args: any[] = [biz.id];
   if (date && period) {
     const { start, end } = rangeFor(period, date);
     sql += " AND s.date BETWEEN ? AND ?";
@@ -35,15 +41,21 @@ export async function GET(req: NextRequest) {
     args.push(worker);
   }
   sql += " ORDER BY s.date DESC, s.start_time";
-  const shifts = (db.prepare(sql).all(...args) as any[]).map(enrich);
+  const shifts = (db.prepare(sql).all(...args) as any[]).map((s) => enrich(s, biz));
   return json({ shifts });
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireOwner();
-  if (isResponse(guard)) return guard;
+  const biz = await requireOwnerBusiness();
+  if (isResponse(biz)) return biz;
   const b = await req.json().catch(() => ({}));
   if (!b.worker_id || !b.date) return bad("worker_id et date requis");
+
+  // Le travailleur doit appartenir au commerce actif.
+  const owns = db
+    .prepare("SELECT 1 FROM workers WHERE id = ? AND business_id = ?")
+    .get(Number(b.worker_id), biz.id);
+  if (!owns) return bad("Travailleur introuvable dans ce commerce", 404);
 
   const info = db
     .prepare(
@@ -63,5 +75,5 @@ export async function POST(req: NextRequest) {
       note: b.note || null,
     });
   const shift = db.prepare("SELECT * FROM shifts WHERE id = ?").get(info.lastInsertRowid);
-  return json({ shift: enrich(shift) }, 201);
+  return json({ shift: enrich(shift, biz) }, 201);
 }

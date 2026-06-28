@@ -1,20 +1,20 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { json, bad, requireOwner, isResponse } from "@/lib/api";
+import { json, bad, requireOwnerBusiness, isResponse } from "@/lib/api";
 import crypto from "node:crypto";
 
 export async function GET() {
-  const guard = await requireOwner();
-  if (isResponse(guard)) return guard;
+  const biz = await requireOwnerBusiness();
+  if (isResponse(biz)) return biz;
   const workers = db
-    .prepare("SELECT * FROM workers ORDER BY active DESC, name")
-    .all();
+    .prepare("SELECT * FROM workers WHERE business_id = ? ORDER BY active DESC, name")
+    .all(biz.id);
   return json({ workers });
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireOwner();
-  if (isResponse(guard)) return guard;
+  const biz = await requireOwnerBusiness();
+  if (isResponse(biz)) return biz;
   const b = await req.json().catch(() => ({}));
   if (!b.name) return bad("Nom requis");
 
@@ -25,10 +25,11 @@ export async function POST(req: NextRequest) {
   try {
     const info = db
       .prepare(
-        `INSERT INTO workers (name, poste, statut, pay_type, pay_basis, base_rate, access_code)
-         VALUES (@name, @poste, @statut, @pay_type, @pay_basis, @base_rate, @access_code)`
+        `INSERT INTO workers (business_id, name, poste, statut, pay_type, pay_basis, base_rate, access_code)
+         VALUES (@business_id, @name, @poste, @statut, @pay_type, @pay_basis, @base_rate, @access_code)`
       )
       .run({
+        business_id: biz.id,
         name: b.name,
         poste: b.poste || "vendeur",
         statut: b.statut || "employe",

@@ -8,6 +8,15 @@ avec une vue **journalière, hebdomadaire et mensuelle**.
 
 ## Fonctionnalités
 
+- **Multi-commerce** : gérez plusieurs commerces dans une seule application.
+  Sélecteur en haut de l'app ; chaque **onglet du navigateur** peut afficher un
+  commerce différent simultanément (mémorisé par onglet). Données entièrement
+  isolées entre commerces.
+- **Heures d'ouverture** : heure d'ouverture / fermeture par commerce.
+- **Imports & intégrations** : importez un export CSV/JSON de votre caisse / POS /
+  comptable (mappage des colonnes auto-détecté) ; ou laissez votre **caisse
+  automatique pousser le flux** (CA, cash) en temps réel via un **endpoint
+  d'ingestion à jeton** (`POST /api/ingest/<jeton>`). Tout alimente le tableau de bord.
 - **Tableau de bord** : indicateur bénéfice / perte, CA, marge commerciale, coûts,
   graphique du bénéfice par jour, détail journalier — en vues **jour / semaine / mois**.
 - **Travailleurs** : ajout / retrait, poste, statut, salaire **modifiable**.
@@ -49,6 +58,22 @@ npm run build && npm run start
 
 - **Propriétaire** : mot de passe par défaut `admin` (à changer dans *Réglages*).
 - **Travailleur** : code d'accès affiché sur sa fiche (onglet *Travailleurs*).
+
+### Tester en bêta
+
+1. **Sur votre machine** : `npm run dev` puis ouvrez http://localhost:3000.
+   Données dans `data/gestion.db` (SQLite local). Idéal pour essayer et améliorer.
+2. **En ligne (bêta partagée)** : déployez sur un hébergeur Node (Railway, Render,
+   un VPS…) avec `npm run build && npm run start`. Montez `data/` et
+   `public/uploads/` sur un volume persistant pour conserver les données.
+   Définissez `SESSION_SECRET` (et `ANTHROPIC_API_KEY` pour activer l'IA).
+3. **Brancher la caisse automatique** : récupérez le jeton du commerce dans
+   *Réglages*, puis faites pousser chaque jour :
+   ```bash
+   curl -X POST https://VOTRE-URL/api/ingest/<jeton> \
+     -H 'content-type: application/json' \
+     -d '{"date":"2026-06-28","ca":1200,"margin_pct":38,"cash_closing":650,"cash_opening":150}'
+   ```
 
 ## Configuration
 
