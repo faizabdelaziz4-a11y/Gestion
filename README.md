@@ -6,6 +6,11 @@ avec une vue **journalière, hebdomadaire et mensuelle**.
 
 > Les commerçants peuvent voir d'un coup d'œil s'ils sont en bénéfice ou en perte.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/faizabdelaziz4-a11y/Gestion)
+
+Déploiement en un clic (voir [`DEPLOY.md`](./DEPLOY.md)) — puis connexion propriétaire
+avec le mot de passe `admin` (à changer dans *Réglages*).
+
 ## Fonctionnalités
 
 - **Multi-commerce** : gérez plusieurs commerces dans une seule application.

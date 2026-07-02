@@ -181,6 +181,8 @@ class FinanceCalc {
   }
 
   dayBreakdown(date: string): DayBreakdown {
+    // Un jour futur n'a pas encore de coûts : on ne projette pas de perte.
+    if (date > todayStr()) return zeroDay(date);
     const rev = db
       .prepare(
         "SELECT ca, margin_pct, platform_ca, platform_rate, source FROM revenue WHERE date = ? AND business_id = ?"
@@ -326,4 +328,27 @@ function emptyTotals() {
 
 function round(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function zeroDay(date: string): DayBreakdown {
+  return {
+    date,
+    ca: 0,
+    marginPct: 0,
+    source: null,
+    grossMargin: 0,
+    labor: 0,
+    diesel: 0,
+    fixedCharges: 0,
+    variableCharges: 0,
+    supplements: 0,
+    platformFee: 0,
+    totalCosts: 0,
+    netProfit: 0,
+    details: { labor: [], diesel: [], charges: [] },
+  };
 }

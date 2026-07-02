@@ -57,13 +57,16 @@ const rev = db.prepare(
   `INSERT OR IGNORE INTO revenue (date, ca, margin_pct, platform_ca, platform_rate)
    VALUES (?, ?, ?, ?, 0.17)`
 );
-for (let i = 0; i < 14; i++) {
+for (let i = 0; i < 40; i++) {
   const d = new Date();
   d.setDate(d.getDate() - i);
   const date = d.toISOString().slice(0, 10);
-  const ca = 800 + Math.round(Math.random() * 600);
-  const platform = Math.round(ca * (0.15 + Math.random() * 0.25)); // ~15–40 % via plateforme
-  rev.run(date, ca, 38, platform);
+  const weekend = [5, 6].includes(d.getDay());
+  const base = weekend ? 1300 : 950;
+  const ca = base + Math.round((Math.random() - 0.3) * 600);
+  const margin = 36 + Math.round(Math.random() * 8); // 36–44 %
+  const platform = Math.round(ca * (0.1 + Math.random() * 0.3)); // 10–40 % via plateforme
+  rev.run(date, Math.max(0, ca), margin, platform);
 }
 
 console.log("✓ Données de démonstration insérées.");
