@@ -1,7 +1,10 @@
 # Déploiement « 1 clic » sur Render (https://render.com)
-# 1) Poussez ce dépôt sur GitHub
-# 2) Render → New → Blueprint → sélectionnez ce dépôt
-# 3) Render lit ce fichier, construit l'image Docker et déploie.
+# 1) Render → New → Blueprint → sélectionnez ce dépôt
+# 2) Render lit ce fichier, construit l'image Docker et déploie.
+#
+# Plan FREE : pas de disque persistant → la base SQLite est réinitialisée à
+# chaque redémarrage/redéploiement (parfait pour une démo). Pour conserver les
+# données, passez le plan à "starter" et décommentez le bloc "disk" ci-dessous.
 services:
   - type: web
     name: gestion
@@ -15,7 +18,9 @@ services:
         value: /app/data/gestion.db
       # - key: ANTHROPIC_API_KEY   # (optionnel) active la lecture IA des photos/imports
       #   sync: false
-    disk:
-      name: gestion-data
-      mountPath: /app/data # base SQLite persistante
-      sizeGB: 1
+    # Données persistantes (plan payant "starter" requis) :
+    # plan: starter
+    # disk:
+    #   name: gestion-data
+    #   mountPath: /app/data
+    #   sizeGB: 1
