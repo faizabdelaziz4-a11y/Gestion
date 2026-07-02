@@ -25,17 +25,21 @@ export async function POST(
   let revenue = false;
   let cash = false;
 
-  if (b.ca != null || b.margin_pct != null) {
+  if (b.ca != null || b.margin_pct != null || b.platform_ca != null) {
     db.prepare(
-      `INSERT INTO revenue (business_id, date, ca, margin_pct, source, note)
-       VALUES (@business_id, @date, @ca, @margin_pct, 'api', NULL)
+      `INSERT INTO revenue (business_id, date, ca, margin_pct, platform_ca, platform_rate, source, note)
+       VALUES (@business_id, @date, @ca, @margin_pct, @platform_ca, @platform_rate, 'api', NULL)
        ON CONFLICT(business_id, date) DO UPDATE SET
-         ca = excluded.ca, margin_pct = excluded.margin_pct, source = 'api'`
+         ca = excluded.ca, margin_pct = excluded.margin_pct,
+         platform_ca = excluded.platform_ca, platform_rate = excluded.platform_rate,
+         source = 'api'`
     ).run({
       business_id: biz.id,
       date,
       ca: Number(b.ca) || 0,
       margin_pct: Number(b.margin_pct) || 0,
+      platform_ca: Number(b.platform_ca) || 0,
+      platform_rate: b.platform_rate != null ? Number(b.platform_rate) : 0.17,
     });
     revenue = true;
   }

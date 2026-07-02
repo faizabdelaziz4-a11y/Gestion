@@ -54,13 +54,16 @@ db.prepare(
 
 // Quelques jours de CA
 const rev = db.prepare(
-  `INSERT OR IGNORE INTO revenue (date, ca, margin_pct) VALUES (?, ?, ?)`
+  `INSERT OR IGNORE INTO revenue (date, ca, margin_pct, platform_ca, platform_rate)
+   VALUES (?, ?, ?, ?, 0.17)`
 );
 for (let i = 0; i < 14; i++) {
   const d = new Date();
   d.setDate(d.getDate() - i);
   const date = d.toISOString().slice(0, 10);
-  rev.run(date, 800 + Math.round(Math.random() * 600), 38);
+  const ca = 800 + Math.round(Math.random() * 600);
+  const platform = Math.round(ca * (0.15 + Math.random() * 0.25)); // ~15–40 % via plateforme
+  rev.run(date, ca, 38, platform);
 }
 
 console.log("✓ Données de démonstration insérées.");

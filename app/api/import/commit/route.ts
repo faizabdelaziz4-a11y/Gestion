@@ -13,10 +13,11 @@ export async function POST(req: NextRequest) {
   if (!mapping.date) return bad("La colonne Date doit être mappée");
 
   const upRevenue = db.prepare(
-    `INSERT INTO revenue (business_id, date, ca, margin_pct, source, note)
-     VALUES (@business_id, @date, @ca, @margin_pct, 'import', NULL)
+    `INSERT INTO revenue (business_id, date, ca, margin_pct, platform_ca, platform_rate, source, note)
+     VALUES (@business_id, @date, @ca, @margin_pct, @platform_ca, 0.17, 'import', NULL)
      ON CONFLICT(business_id, date) DO UPDATE SET
-       ca = excluded.ca, margin_pct = excluded.margin_pct, source = 'import'`
+       ca = excluded.ca, margin_pct = excluded.margin_pct,
+       platform_ca = excluded.platform_ca, source = 'import'`
   );
   const upCash = db.prepare(
     `INSERT INTO cash (business_id, date, opening, expected_cash, closing, source, note)
@@ -36,12 +37,13 @@ export async function POST(req: NextRequest) {
         errors.push(`Date illisible: "${row[mapping.date!]}"`);
         continue;
       }
-      if (mapping.ca) {
+      if (mapping.ca || mapping.platform_ca) {
         upRevenue.run({
           business_id: biz.id,
           date,
-          ca: toNumber(row[mapping.ca] || ""),
+          ca: mapping.ca ? toNumber(row[mapping.ca] || "") : 0,
           margin_pct: mapping.margin_pct ? toNumber(row[mapping.margin_pct] || "") : 0,
+          platform_ca: mapping.platform_ca ? toNumber(row[mapping.platform_ca] || "") : 0,
         });
         revCount++;
       }

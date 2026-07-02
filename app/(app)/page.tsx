@@ -14,6 +14,7 @@ interface Day {
   fixedCharges: number;
   variableCharges: number;
   supplements: number;
+  platformFee: number;
   totalCosts: number;
   netProfit: number;
 }
@@ -117,6 +118,11 @@ export default function Dashboard() {
           value={eur(t?.variableCharges ?? 0)}
           tone="cost"
         />
+        <Kpi
+          label="Commission plateforme"
+          value={eur(t?.platformFee ?? 0)}
+          tone="cost"
+        />
         <Kpi label="Suppléments" value={eur(t?.supplements ?? 0)} tone="cost" />
         <Kpi label="Total coûts" value={eur(t?.totalCosts ?? 0)} tone="cost" />
         <Kpi
@@ -138,7 +144,7 @@ export default function Dashboard() {
               return (
                 <div
                   key={d.date}
-                  className="flex-1 flex flex-col items-center justify-end group relative"
+                  className="flex-1 h-full flex flex-col items-center justify-end group relative"
                   title={`${d.date}: ${eur(d.netProfit)}`}
                 >
                   <div
@@ -178,7 +184,9 @@ export default function Dashboard() {
                 <td className="cell text-slate-500">{eur(d.labor)}</td>
                 <td className="cell text-slate-500">{eur(d.diesel)}</td>
                 <td className="cell text-slate-500">
-                  {eur(d.fixedCharges + d.variableCharges + d.supplements)}
+                  {eur(
+                    d.fixedCharges + d.variableCharges + d.supplements + d.platformFee
+                  )}
                 </td>
                 <td
                   className={`cell font-semibold ${

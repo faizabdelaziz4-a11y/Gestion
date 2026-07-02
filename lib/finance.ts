@@ -182,20 +182,29 @@ class FinanceCalc {
 
   dayBreakdown(date: string): DayBreakdown {
     const rev = db
-      .prepare("SELECT ca, margin_pct, source FROM revenue WHERE date = ? AND business_id = ?")
+      .prepare(
+        "SELECT ca, margin_pct, platform_ca, platform_rate, source FROM revenue WHERE date = ? AND business_id = ?"
+      )
       .get(date, this.b.id) as
-      | { ca: number; margin_pct: number; source: string }
+      | {
+          ca: number;
+          margin_pct: number;
+          platform_ca: number;
+          platform_rate: number;
+          source: string;
+        }
       | undefined;
     const ca = rev?.ca ?? 0;
     const marginPct = rev?.margin_pct ?? 0;
     const grossMargin = (ca * marginPct) / 100;
+    const platformFee = (rev?.platform_ca ?? 0) * (rev?.platform_rate ?? 0.17);
 
     const labor = this.laborForDay(date);
     const diesel = this.dieselForDay(date);
     const charges = this.chargesForDay(date);
     const supplements = this.supplementsForDay(date);
     const totalCosts =
-      labor.cost + diesel.cost + charges.fixed + charges.variable + supplements;
+      labor.cost + diesel.cost + charges.fixed + charges.variable + supplements + platformFee;
 
     return {
       date,
@@ -208,6 +217,7 @@ class FinanceCalc {
       fixedCharges: round(charges.fixed),
       variableCharges: round(charges.variable),
       supplements: round(supplements),
+      platformFee: round(platformFee),
       totalCosts: round(totalCosts),
       netProfit: round(grossMargin - totalCosts),
       details: { labor: labor.details, diesel: diesel.details, charges: charges.details },
@@ -246,6 +256,7 @@ export interface DayBreakdown {
   fixedCharges: number;
   variableCharges: number;
   supplements: number;
+  platformFee: number;
   totalCosts: number;
   netProfit: number;
   details: { labor: any[]; diesel: any[]; charges: any[] };
@@ -287,6 +298,7 @@ export function summary(
     acc.fixedCharges += d.fixedCharges;
     acc.variableCharges += d.variableCharges;
     acc.supplements += d.supplements;
+    acc.platformFee += d.platformFee;
     acc.totalCosts += d.totalCosts;
     acc.netProfit += d.netProfit;
     return acc;
@@ -306,6 +318,7 @@ function emptyTotals() {
     fixedCharges: 0,
     variableCharges: 0,
     supplements: 0,
+    platformFee: 0,
     totalCosts: 0,
     netProfit: 0,
   };

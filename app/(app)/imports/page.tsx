@@ -4,11 +4,18 @@ import { useState } from "react";
 import { api, eur, getActiveBusinessId } from "../../components/api";
 import { useBusiness } from "../../components/BusinessContext";
 
-type Field = "date" | "ca" | "margin_pct" | "cash_closing" | "cash_opening";
+type Field =
+  | "date"
+  | "ca"
+  | "margin_pct"
+  | "platform_ca"
+  | "cash_closing"
+  | "cash_opening";
 const FIELD_LABELS: Record<Field, string> = {
   date: "Date *",
   ca: "Chiffre d'affaires",
   margin_pct: "Marge (%)",
+  platform_ca: "CA via plateforme",
   cash_closing: "Caisse fin (cash)",
   cash_opening: "Fond de caisse (début)",
 };
@@ -21,6 +28,7 @@ export default function ImportsPage() {
     date: null,
     ca: null,
     margin_pct: null,
+    platform_ca: null,
     cash_closing: null,
     cash_opening: null,
   });

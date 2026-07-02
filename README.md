@@ -35,6 +35,9 @@ avec une vue **journalière, hebdomadaire et mensuelle**.
   marchandises…), réparties automatiquement **par jour**.
 - **CA & marge** : saisie quotidienne du chiffre d'affaires et du % de marge →
   marge commerciale → **indicateur de bénéfice ou de perte**.
+- **Commission plateforme** : part du CA passée par une plateforme de livraison
+  (Uber Eats, Deliveroo, Takeaway…) et son taux de **commission (17 % par défaut)**,
+  déduit automatiquement comme coût dans le bénéfice net.
 - **Contrôle de caisse** : fond de caisse en début et cash compté en fin de soirée
   → **écart de caisse** (surplus / manquant) pour vérifier que le cash est correct.
 - **Assistant IA** (optionnel) : lecture du compteur kilométrique et import

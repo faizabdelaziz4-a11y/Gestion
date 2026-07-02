@@ -92,11 +92,13 @@ function migrate(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS revenue (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       business_id INTEGER NOT NULL DEFAULT 1 REFERENCES businesses(id) ON DELETE CASCADE,
-      date        TEXT NOT NULL,                       -- YYYY-MM-DD
-      ca          REAL NOT NULL DEFAULT 0,             -- chiffre d'affaires du jour
-      margin_pct  REAL NOT NULL DEFAULT 0,             -- marge commerciale en %
-      source      TEXT NOT NULL DEFAULT 'manuel',      -- manuel | import | api
-      note        TEXT,
+      date          TEXT NOT NULL,                     -- YYYY-MM-DD
+      ca            REAL NOT NULL DEFAULT 0,           -- chiffre d'affaires du jour
+      margin_pct    REAL NOT NULL DEFAULT 0,           -- marge commerciale en %
+      platform_ca   REAL NOT NULL DEFAULT 0,           -- part du CA via plateforme (livraison)
+      platform_rate REAL NOT NULL DEFAULT 0.17,        -- commission plateforme (17 % par défaut)
+      source        TEXT NOT NULL DEFAULT 'manuel',    -- manuel | import | api
+      note          TEXT,
       UNIQUE(business_id, date)
     );
 
@@ -138,20 +140,32 @@ function hasColumn(db: Database.Database, table: string, col: string): boolean {
  * Idempotente : n'agit que si les colonnes/tables ne sont pas déjà à jour.
  */
 function patchSchema(db: Database.Database) {
+  // Défensif : au build, des workers parallèles peuvent lancer la même
+  // migration en même temps → on ignore les erreurs "déjà existant".
+  const safe = (sql: string) => {
+    try {
+      db.exec(sql);
+    } catch (e: any) {
+      const m = String(e?.message || e);
+      if (!/duplicate column|already exists/i.test(m)) throw e;
+    }
+  };
+
   // Ajout des colonnes business_id manquantes (anciennes bases).
   for (const t of ["workers", "charges"]) {
     if (!hasColumn(db, t, "business_id")) {
-      db.exec(`ALTER TABLE ${t} ADD COLUMN business_id INTEGER NOT NULL DEFAULT 1`);
+      safe(`ALTER TABLE ${t} ADD COLUMN business_id INTEGER NOT NULL DEFAULT 1`);
     }
   }
   // revenue : reconstruite si l'ancienne unicité globale (pas de business_id).
   if (!hasColumn(db, "revenue", "business_id")) {
-    db.exec(`
+    safe(`
       ALTER TABLE revenue RENAME TO revenue_old;
       CREATE TABLE revenue (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         business_id INTEGER NOT NULL DEFAULT 1 REFERENCES businesses(id) ON DELETE CASCADE,
         date TEXT NOT NULL, ca REAL NOT NULL DEFAULT 0, margin_pct REAL NOT NULL DEFAULT 0,
+        platform_ca REAL NOT NULL DEFAULT 0, platform_rate REAL NOT NULL DEFAULT 0.17,
         source TEXT NOT NULL DEFAULT 'manuel', note TEXT, UNIQUE(business_id, date)
       );
       INSERT INTO revenue (id, business_id, date, ca, margin_pct, note)
@@ -159,9 +173,14 @@ function patchSchema(db: Database.Database) {
       DROP TABLE revenue_old;
     `);
   }
+  // Commission plateforme : ajout sur les bases déjà multi-commerce.
+  if (hasColumn(db, "revenue", "business_id") && !hasColumn(db, "revenue", "platform_ca")) {
+    safe("ALTER TABLE revenue ADD COLUMN platform_ca REAL NOT NULL DEFAULT 0");
+    safe("ALTER TABLE revenue ADD COLUMN platform_rate REAL NOT NULL DEFAULT 0.17");
+  }
   // cash : reconstruite si l'ancienne PK globale (pas de business_id).
   if (!hasColumn(db, "cash", "business_id")) {
-    db.exec(`
+    safe(`
       ALTER TABLE cash RENAME TO cash_old;
       CREATE TABLE cash (
         business_id INTEGER NOT NULL DEFAULT 1 REFERENCES businesses(id) ON DELETE CASCADE,

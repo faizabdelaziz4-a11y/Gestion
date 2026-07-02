@@ -72,7 +72,13 @@ export function parseFile(filename: string, text: string): ParsedFile {
   return parseCsv(text);
 }
 
-export type Field = "date" | "ca" | "margin_pct" | "cash_closing" | "cash_opening";
+export type Field =
+  | "date"
+  | "ca"
+  | "margin_pct"
+  | "platform_ca"
+  | "cash_closing"
+  | "cash_opening";
 
 /** Devine quelle colonne correspond à quel champ, d'après son intitulé. */
 export function guessMapping(columns: string[]): Record<Field, string | null> {
@@ -87,6 +93,7 @@ export function guessMapping(columns: string[]): Record<Field, string | null> {
     date: find(["date", "jour", "day"]),
     ca: find(["ca", "chiffre", "vente", "total", "revenue", "turnover", "montant"]),
     margin_pct: find(["marge", "margin"]),
+    platform_ca: find(["plateforme", "platform", "uber", "deliveroo", "takeaway", "livraison"]),
     cash_closing: find(["cash", "especes", "espece", "caisse", "liquide"]),
     cash_opening: find(["fond", "ouverture", "opening"]),
   };

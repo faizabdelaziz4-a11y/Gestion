@@ -7,6 +7,8 @@ interface Rev {
   date: string;
   ca: number;
   margin_pct: number;
+  platform_ca?: number;
+  platform_rate?: number;
   note?: string;
 }
 
@@ -14,6 +16,8 @@ export default function RevenusPage() {
   const [date, setDate] = useState(todayISO());
   const [ca, setCa] = useState("");
   const [margin, setMargin] = useState("");
+  const [platformCa, setPlatformCa] = useState("");
+  const [platformRate, setPlatformRate] = useState("17");
   const [note, setNote] = useState("");
   const [rows, setRows] = useState<Rev[]>([]);
   const [msg, setMsg] = useState("");
@@ -32,10 +36,18 @@ export default function RevenusPage() {
       if (r.revenue) {
         setCa(String(r.revenue.ca));
         setMargin(String(r.revenue.margin_pct));
+        setPlatformCa(r.revenue.platform_ca ? String(r.revenue.platform_ca) : "");
+        setPlatformRate(
+          r.revenue.platform_rate != null
+            ? String(Math.round(r.revenue.platform_rate * 10000) / 100)
+            : "17"
+        );
         setNote(r.revenue.note || "");
       } else {
         setCa("");
         setMargin("");
+        setPlatformCa("");
+        setPlatformRate("17");
         setNote("");
       }
     });
@@ -49,6 +61,8 @@ export default function RevenusPage() {
         date,
         ca: Number(ca),
         margin_pct: Number(margin),
+        platform_ca: Number(platformCa) || 0,
+        platform_rate: (Number(platformRate) || 0) / 100,
         note,
       }),
     });
@@ -93,10 +107,29 @@ export default function RevenusPage() {
             placeholder="ex. 35"
           />
         </div>
-        <div className="flex items-end">
-          <button className="btn-primary w-full">Enregistrer</button>
+        <div>
+          <label className="label">CA via plateforme (€)</label>
+          <input
+            type="number"
+            step="0.01"
+            className="input"
+            value={platformCa}
+            onChange={(e) => setPlatformCa(e.target.value)}
+            placeholder="livraison (Uber, Deliveroo…)"
+          />
         </div>
-        <div className="md:col-span-4">
+        <div>
+          <label className="label">Commission plateforme (%)</label>
+          <input
+            type="number"
+            step="0.1"
+            className="input"
+            value={platformRate}
+            onChange={(e) => setPlatformRate(e.target.value)}
+            placeholder="17"
+          />
+        </div>
+        <div className="md:col-span-2">
           <label className="label">Note (optionnel)</label>
           <input
             className="input"
@@ -104,15 +137,27 @@ export default function RevenusPage() {
             onChange={(e) => setNote(e.target.value)}
           />
         </div>
-        {ca && margin && (
-          <p className="md:col-span-4 text-sm text-slate-500">
-            Marge commerciale estimée :{" "}
-            <strong className="text-emerald-600">
-              {eur((Number(ca) * Number(margin)) / 100)}
-            </strong>
-          </p>
-        )}
-        {msg && <p className="md:col-span-4 text-sm text-emerald-600">{msg}</p>}
+
+        <div className="md:col-span-4 flex flex-wrap items-center gap-4">
+          <button className="btn-primary">Enregistrer</button>
+          {ca && margin && (
+            <span className="text-sm text-slate-500">
+              Marge :{" "}
+              <strong className="text-emerald-600">
+                {eur((Number(ca) * Number(margin)) / 100)}
+              </strong>
+            </span>
+          )}
+          {platformCa && Number(platformCa) > 0 && (
+            <span className="text-sm text-slate-500">
+              Commission plateforme :{" "}
+              <strong className="text-red-600">
+                −{eur((Number(platformCa) * (Number(platformRate) || 0)) / 100)}
+              </strong>
+            </span>
+          )}
+          {msg && <span className="text-sm text-emerald-600">{msg}</span>}
+        </div>
       </form>
 
       <div className="card overflow-x-auto">
