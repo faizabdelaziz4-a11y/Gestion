@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     km_start: b.km_start != null && b.km_start !== "" ? Number(b.km_start) : null,
     km_end: b.km_end != null && b.km_end !== "" ? Number(b.km_end) : null,
     photo_path: b.photo_path || null,
+    open_photo: b.open_photo || null,
+    close_photo: b.close_photo || null,
     note: b.note || null,
   };
 
@@ -42,8 +44,8 @@ export async function POST(req: NextRequest) {
 
   const info = db
     .prepare(
-      `INSERT INTO shifts (worker_id, date, start_time, end_time, break_minutes, km_start, km_end, photo_path, source, note)
-       VALUES (@worker_id, @date, @start_time, @end_time, 0, @km_start, @km_end, @photo_path, 'travailleur', @note)`
+      `INSERT INTO shifts (worker_id, date, start_time, end_time, break_minutes, km_start, km_end, photo_path, open_photo, close_photo, source, note)
+       VALUES (@worker_id, @date, @start_time, @end_time, 0, @km_start, @km_end, @photo_path, @open_photo, @close_photo, 'travailleur', @note)`
     )
     .run({ worker_id: s.workerId, date: b.date, ...data });
   return json({ id: info.lastInsertRowid, created: true }, 201);
@@ -52,8 +54,11 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   const s = await getSession();
   if (!s || s.role !== "worker") return bad("Réservé aux travailleurs", 401);
+  const w = db
+    .prepare("SELECT poste FROM workers WHERE id = ?")
+    .get(s.workerId) as { poste: string } | undefined;
   const shifts = db
     .prepare("SELECT * FROM shifts WHERE worker_id = ? ORDER BY date DESC LIMIT 30")
     .all(s.workerId);
-  return json({ name: s.name, shifts });
+  return json({ name: s.name, poste: w?.poste || "", shifts });
 }

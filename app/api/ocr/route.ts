@@ -18,6 +18,11 @@ export async function POST(req: NextRequest) {
   const saved = await saveImage(file);
   const image = { base64: saved.base64, mediaType: saved.mediaType };
 
+  // Simple photo (local à l'ouverture/fermeture) : on enregistre sans lecture IA.
+  if (kind === "photo") {
+    return json({ photo_path: saved.relPath });
+  }
+
   if (kind === "schedule") {
     const entries = await readSchedule(image);
     return json({ photo_path: saved.relPath, entries });

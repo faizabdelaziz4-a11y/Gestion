@@ -64,6 +64,8 @@ function migrate(db: Database.Database) {
       km_start      REAL,                              -- livreurs uniquement
       km_end        REAL,
       photo_path    TEXT,                              -- photo du tableau de bord / horaire importé
+      open_photo    TEXT,                              -- photo du local à l'ouverture
+      close_photo   TEXT,                              -- photo du local à la fermeture
       source        TEXT NOT NULL DEFAULT 'manuel',    -- manuel | travailleur | photo
       note          TEXT,
       created_at    TEXT NOT NULL DEFAULT (datetime('now'))
@@ -177,6 +179,11 @@ function patchSchema(db: Database.Database) {
   if (hasColumn(db, "revenue", "business_id") && !hasColumn(db, "revenue", "platform_ca")) {
     safe("ALTER TABLE revenue ADD COLUMN platform_ca REAL NOT NULL DEFAULT 0");
     safe("ALTER TABLE revenue ADD COLUMN platform_rate REAL NOT NULL DEFAULT 0.17");
+  }
+  // Photos du local (ouverture/fermeture) pour le pointage travailleur.
+  if (!hasColumn(db, "shifts", "open_photo")) {
+    safe("ALTER TABLE shifts ADD COLUMN open_photo TEXT");
+    safe("ALTER TABLE shifts ADD COLUMN close_photo TEXT");
   }
   // cash : reconstruite si l'ancienne PK globale (pas de business_id).
   if (!hasColumn(db, "cash", "business_id")) {

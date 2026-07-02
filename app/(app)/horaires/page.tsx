@@ -22,6 +22,8 @@ interface Shift {
   hours: number;
   km: number;
   photo_path: string | null;
+  open_photo: string | null;
+  close_photo: string | null;
   source: string;
   diesel: { cost: number; liters: number; pricePerLiter: number } | null;
 }
@@ -214,6 +216,7 @@ export default function HorairesPage() {
               <th className="cell">Heures</th>
               <th className="cell">Km</th>
               <th className="cell">Diesel</th>
+              <th className="cell">Photos</th>
               <th className="cell"></th>
             </tr>
           </thead>
@@ -242,6 +245,29 @@ export default function HorairesPage() {
                   )}
                 </td>
                 <td className="cell">
+                  <div className="flex items-center gap-1">
+                    {[
+                      { p: s.open_photo, t: "Ouverture" },
+                      { p: s.close_photo, t: "Fermeture" },
+                      { p: s.photo_path, t: "Compteur" },
+                    ]
+                      .filter((x) => x.p)
+                      .map((x, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <a key={i} href={x.p!} target="_blank" rel="noreferrer" title={x.t}>
+                          <img
+                            src={x.p!}
+                            alt={x.t}
+                            className="h-8 w-8 rounded-md object-cover ring-1 ring-slate-200 hover:ring-brand"
+                          />
+                        </a>
+                      ))}
+                    {!s.open_photo && !s.close_photo && !s.photo_path && (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </div>
+                </td>
+                <td className="cell">
                   <button
                     className="text-red-500 hover:underline text-xs"
                     onClick={async () => {
@@ -256,7 +282,7 @@ export default function HorairesPage() {
             ))}
             {!shifts.length && (
               <tr>
-                <td className="cell text-slate-400" colSpan={7}>
+                <td className="cell text-slate-400" colSpan={8}>
                   Aucun shift sur la période.
                 </td>
               </tr>
