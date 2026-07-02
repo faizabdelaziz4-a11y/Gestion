@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  /* Palette pro (surfaces & encres) */
+  --page: #f7f8f8;
+  --surface: #ffffff;
+  --ink: #0f172a;
+  --ink-2: #475569;
+  --muted: #94a3b8;
+  --hairline: #e9edf1;
+  --brand: #0d9488;
+  --brand-dark: #0f766e;
+  --good: #0ca30c;
+  --good-ink: #047a3d;
+  --bad: #d03b3b;
+  /* Catégories de coûts (palette catégorielle validée CVD) */
+  --c-labor: #2a78d6;
+  --c-diesel: #1baf7a;
+  --c-fixed: #4a3aa7;
+  --c-variable: #eb6834;
+  --c-platform: #e87ba4;
+  --c-supp: #eda100;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body {
+  background-color: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl p-5;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03);
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition;
+  }
+  .btn-primary {
+    @apply btn text-white;
+    background: var(--brand);
+  }
+  .btn-primary:hover {
+    background: var(--brand-dark);
+  }
+  .btn-ghost {
+    @apply btn text-slate-700;
+    background: #f1f5f5;
+  }
+  .btn-ghost:hover {
+    background: #e6ecec;
+  }
+  .btn-danger {
+    @apply btn text-red-700 bg-red-50 hover:bg-red-100;
+  }
+  .input {
+    @apply w-full rounded-xl px-3 py-2 text-sm transition;
+    background: var(--surface);
+    border: 1px solid #d7dee5;
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+  }
+  .label {
+    @apply block text-xs font-medium mb-1;
+    color: var(--ink-2);
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  th.cell,
+  td.cell {
+    @apply px-3 py-2 text-left;
+  }
+  .stat-label {
+    @apply text-xs font-medium;
+    color: var(--ink-2);
+  }
+  .stat-value {
+    @apply text-lg font-semibold tnum;
+    color: var(--ink);
+  }
+}

@@ -1,0 +1,26 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# data & uploads (runtime, machine-local)
+/data/*.db
+/data/*.db-*
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# env
+.env
+.env*.local
+
+# misc
+*.pem
+npm-debug.log*
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
