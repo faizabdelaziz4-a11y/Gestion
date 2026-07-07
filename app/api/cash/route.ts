@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/db";
+import { sql } from "@/lib/db";
 import { json, bad, requireOwnerBusiness, isResponse } from "@/lib/api";
 import { rangeFor } from "@/lib/time";
 
@@ -11,14 +11,11 @@ interface CashRow {
   note: string | null;
 }
 
-// Recette cash réelle = comptage fin − fond de caisse début.
-// Écart = recette réelle − ventes espèces attendues (+ surplus / − manquant).
+const round = (n: number) => Math.round(n * 100) / 100;
 function withEcart(r: CashRow) {
   const recette = r.closing - r.opening;
-  const ecart = recette - r.expected_cash;
-  return { ...r, recette: round(recette), ecart: round(ecart) };
+  return { ...r, recette: round(recette), ecart: round(recette - r.expected_cash) };
 }
-const round = (n: number) => Math.round(n * 100) / 100;
 
 export async function GET(req: NextRequest) {
   const biz = await requireOwnerBusiness();
@@ -28,23 +25,18 @@ export async function GET(req: NextRequest) {
   const period = sp.get("period") as "day" | "week" | "month" | null;
 
   if (date && !period) {
-    const row = db
-      .prepare("SELECT * FROM cash WHERE business_id = ? AND date = ?")
-      .get(biz.id, date) as CashRow | undefined;
-    return json({ cash: row ? withEcart(row) : null });
+    const rows = await sql`SELECT * FROM cash WHERE business_id = ${biz.id} AND date = ${date}`;
+    return json({ cash: rows[0] ? withEcart(rows[0] as unknown as CashRow) : null });
   }
   if (date && period) {
     const { start, end } = rangeFor(period, date);
-    const rows = db
-      .prepare(
-        "SELECT * FROM cash WHERE business_id = ? AND date BETWEEN ? AND ? ORDER BY date DESC"
-      )
-      .all(biz.id, start, end) as CashRow[];
+    const rows = (await sql`
+      SELECT * FROM cash WHERE business_id = ${biz.id} AND date BETWEEN ${start} AND ${end}
+      ORDER BY date DESC`) as unknown as CashRow[];
     return json({ cash: rows.map(withEcart) });
   }
-  const rows = db
-    .prepare("SELECT * FROM cash WHERE business_id = ? ORDER BY date DESC LIMIT 60")
-    .all(biz.id) as CashRow[];
+  const rows = (await sql`
+    SELECT * FROM cash WHERE business_id = ${biz.id} ORDER BY date DESC LIMIT 60`) as unknown as CashRow[];
   return json({ cash: rows.map(withEcart) });
 }
 
@@ -53,25 +45,13 @@ export async function POST(req: NextRequest) {
   if (isResponse(biz)) return biz;
   const b = await req.json().catch(() => ({}));
   if (!b.date) return bad("Date requise");
-  db.prepare(
-    `INSERT INTO cash (business_id, date, opening, expected_cash, closing, source, note)
-     VALUES (@business_id, @date, @opening, @expected_cash, @closing, 'manuel', @note)
-     ON CONFLICT(business_id, date) DO UPDATE SET
-       opening = excluded.opening,
-       expected_cash = excluded.expected_cash,
-       closing = excluded.closing,
-       source = 'manuel',
-       note = excluded.note`
-  ).run({
-    business_id: biz.id,
-    date: b.date,
-    opening: Number(b.opening) || 0,
-    expected_cash: Number(b.expected_cash) || 0,
-    closing: Number(b.closing) || 0,
-    note: b.note || null,
-  });
-  const row = db
-    .prepare("SELECT * FROM cash WHERE business_id = ? AND date = ?")
-    .get(biz.id, b.date) as CashRow;
-  return json({ cash: withEcart(row) });
+  const rows = await sql`
+    INSERT INTO cash (business_id, date, opening, expected_cash, closing, source, note)
+    VALUES (${biz.id}, ${b.date}, ${Number(b.opening) || 0}, ${Number(b.expected_cash) || 0},
+            ${Number(b.closing) || 0}, 'manuel', ${b.note || null})
+    ON CONFLICT (business_id, date) DO UPDATE SET
+      opening = excluded.opening, expected_cash = excluded.expected_cash,
+      closing = excluded.closing, source = 'manuel', note = excluded.note
+    RETURNING *`;
+  return json({ cash: withEcart(rows[0] as unknown as CashRow) });
 }

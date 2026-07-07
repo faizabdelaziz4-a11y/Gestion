@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { getSession, Session } from "./auth";
 import { getActiveBusiness } from "./business";
-import { Business } from "./db";
+import { Business, ensureSchema } from "./db";
 
 export function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
@@ -16,6 +16,7 @@ export function bad(message: string, status = 400) {
 export async function requireOwner(): Promise<Session | NextResponse> {
   const s = await getSession();
   if (!s || s.role !== "owner") return bad("Accès réservé au propriétaire", 401);
+  await ensureSchema();
   return s;
 }
 
@@ -23,6 +24,7 @@ export async function requireOwner(): Promise<Session | NextResponse> {
 export async function requireAuth(): Promise<Session | NextResponse> {
   const s = await getSession();
   if (!s) return bad("Non authentifié", 401);
+  await ensureSchema();
   return s;
 }
 

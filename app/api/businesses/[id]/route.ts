@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
-import { db, listBusinesses } from "@/lib/db";
+import { sql, listBusinesses, randomToken } from "@/lib/db";
 import { json, bad, requireOwner, isResponse } from "@/lib/api";
-import crypto from "node:crypto";
 
 const FIELDS = [
   "name",
@@ -33,27 +32,20 @@ export async function PATCH(
   const { id } = await params;
   const b = await req.json().catch(() => ({}));
 
-  // Régénération du jeton d'ingestion à la demande.
   if (b.regenerate_token) {
-    db.prepare("UPDATE businesses SET ingest_token = ? WHERE id = ?").run(
-      crypto.randomBytes(16).toString("hex"),
-      id
-    );
+    await sql`UPDATE businesses SET ingest_token = ${randomToken()} WHERE id = ${Number(id)}`;
   }
 
-  const sets: string[] = [];
-  const values: any = { id };
+  const values: Record<string, any> = {};
   for (const f of FIELDS) {
-    if (b[f] !== undefined) {
-      sets.push(`${f} = @${f}`);
-      values[f] = NUMERIC.has(f) ? Number(b[f]) : b[f];
-    }
+    if (b[f] !== undefined) values[f] = NUMERIC.has(f) ? Number(b[f]) : b[f];
   }
-  if (sets.length) {
-    db.prepare(`UPDATE businesses SET ${sets.join(", ")} WHERE id = @id`).run(values);
+  const cols = Object.keys(values);
+  if (cols.length) {
+    await sql`UPDATE businesses SET ${sql(values, ...cols)} WHERE id = ${Number(id)}`;
   }
-  const business = db.prepare("SELECT * FROM businesses WHERE id = ?").get(id);
-  return json({ business });
+  const rows = await sql`SELECT * FROM businesses WHERE id = ${Number(id)}`;
+  return json({ business: rows[0] });
 }
 
 export async function DELETE(
@@ -63,9 +55,8 @@ export async function DELETE(
   const guard = await requireOwner();
   if (isResponse(guard)) return guard;
   const { id } = await params;
-  // On garde toujours au moins un commerce.
-  if (listBusinesses().length <= 1)
+  if ((await listBusinesses()).length <= 1)
     return bad("Impossible de supprimer le dernier commerce");
-  db.prepare("DELETE FROM businesses WHERE id = ?").run(id);
+  await sql`DELETE FROM businesses WHERE id = ${Number(id)}`;
   return json({ ok: true });
 }

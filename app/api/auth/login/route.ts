@@ -7,13 +7,13 @@ export async function POST(req: NextRequest) {
   const { password, code } = body as { password?: string; code?: string };
 
   if (password != null) {
-    if (!checkOwnerPassword(password)) return bad("Mot de passe incorrect", 401);
+    if (!(await checkOwnerPassword(password))) return bad("Mot de passe incorrect", 401);
     await setSession({ role: "owner" });
     return json({ role: "owner" });
   }
 
   if (code != null) {
-    const w = findWorkerByCode(code);
+    const w = await findWorkerByCode(code);
     if (!w) return bad("Code d'accès invalide", 401);
     await setSession({ role: "worker", workerId: w.id, name: w.name });
     return json({ role: "worker", workerId: w.id, name: w.name, poste: w.poste });

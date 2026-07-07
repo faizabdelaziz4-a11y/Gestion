@@ -15,6 +15,6 @@ export async function POST(req: NextRequest) {
   const guard = await requireOwner();
   if (isResponse(guard)) return guard;
   const b = await req.json().catch(() => ({}));
-  if (b.owner_password) setSetting("owner_password", String(b.owner_password));
+  if (b.owner_password) await setSetting("owner_password", String(b.owner_password));
   return json({ ok: true });
 }
