@@ -1,0 +1,14 @@
+# Déploiement Netlify (application Next.js)
+[build]
+  command = "npm run build"
+
+# Runtime Next.js officiel (API routes = fonctions serverless)
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Variables d'environnement à définir dans Netlify (Site settings → Environment) :
+#   DATABASE_URL          = connexion Postgres Supabase (pooler, port 6543)
+#   SUPABASE_URL          = https://<projet>.supabase.co
+#   SUPABASE_SERVICE_KEY  = clé service_role Supabase (stockage des photos)
+#   SESSION_SECRET        = une longue chaîne aléatoire
+#   ANTHROPIC_API_KEY     = (optionnel) lecture IA des photos/imports

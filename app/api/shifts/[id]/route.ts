@@ -1,9 +1,6 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/db";
+import { sql } from "@/lib/db";
 import { json, bad, requireOwnerBusiness, isResponse } from "@/lib/api";
-
-const SCOPE =
-  "id = @id AND worker_id IN (SELECT id FROM workers WHERE business_id = @business_id)";
 
 const FIELDS = [
   "date",
@@ -23,16 +20,18 @@ export async function PATCH(
   if (isResponse(biz)) return biz;
   const { id } = await params;
   const b = await req.json().catch(() => ({}));
-  const sets: string[] = [];
-  const values: any = { id, business_id: biz.id };
+
+  const values: Record<string, any> = {};
   for (const f of FIELDS) {
-    if (b[f] !== undefined) {
-      sets.push(`${f} = @${f}`);
-      values[f] = b[f] === "" ? null : b[f];
-    }
+    if (b[f] !== undefined) values[f] = b[f] === "" ? null : b[f];
   }
-  if (!sets.length) return bad("Aucun champ à modifier");
-  db.prepare(`UPDATE shifts SET ${sets.join(", ")} WHERE ${SCOPE}`).run(values);
+  const cols = Object.keys(values);
+  if (!cols.length) return bad("Aucun champ à modifier");
+
+  await sql`
+    UPDATE shifts SET ${sql(values, ...cols)}
+    WHERE id = ${Number(id)}
+      AND worker_id IN (SELECT id FROM workers WHERE business_id = ${biz.id})`;
   return json({ ok: true });
 }
 
@@ -43,6 +42,8 @@ export async function DELETE(
   const biz = await requireOwnerBusiness();
   if (isResponse(biz)) return biz;
   const { id } = await params;
-  db.prepare(`DELETE FROM shifts WHERE ${SCOPE}`).run({ id, business_id: biz.id });
+  await sql`
+    DELETE FROM shifts WHERE id = ${Number(id)}
+      AND worker_id IN (SELECT id FROM workers WHERE business_id = ${biz.id})`;
   return json({ ok: true });
 }

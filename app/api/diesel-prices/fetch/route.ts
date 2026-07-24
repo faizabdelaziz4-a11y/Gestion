@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { sql } from "@/lib/db";
 import { json, bad, requireOwnerBusiness, isResponse } from "@/lib/api";
 import { fetchOfficialDieselPrice } from "@/lib/dieselSource";
 
@@ -17,9 +17,8 @@ export async function POST() {
       502
     );
   }
-  db.prepare(
-    `INSERT INTO diesel_prices (date, price) VALUES (?, ?)
-     ON CONFLICT(date) DO UPDATE SET price = excluded.price`
-  ).run(result.date, result.price);
+  await sql`
+    INSERT INTO diesel_prices (date, price) VALUES (${result.date}, ${result.price})
+    ON CONFLICT (date) DO UPDATE SET price = excluded.price`;
   return json(result);
 }

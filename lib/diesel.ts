@@ -1,5 +1,5 @@
 /** Calcul du coût diesel pour les livreurs. */
-import { db } from "./db";
+import { sql } from "./db";
 
 export interface DieselResult {
   km: number;
@@ -14,15 +14,12 @@ export interface DieselConfig {
 }
 
 /** Prix du diesel (table globale, prix officiel national) à une date. */
-export function dieselPrice(date: string, fallback: number): number {
-  const exact = db
-    .prepare("SELECT price FROM diesel_prices WHERE date = ?")
-    .get(date) as { price: number } | undefined;
-  if (exact) return exact.price;
-  const recent = db
-    .prepare("SELECT price FROM diesel_prices WHERE date <= ? ORDER BY date DESC LIMIT 1")
-    .get(date) as { price: number } | undefined;
-  if (recent) return recent.price;
+export async function dieselPrice(date: string, fallback: number): Promise<number> {
+  const exact = await sql`SELECT price FROM diesel_prices WHERE date = ${date}`;
+  if (exact[0]) return exact[0].price as number;
+  const recent = await sql`
+    SELECT price FROM diesel_prices WHERE date <= ${date} ORDER BY date DESC LIMIT 1`;
+  if (recent[0]) return recent[0].price as number;
   return fallback;
 }
 
@@ -30,8 +27,12 @@ export function dieselPrice(date: string, fallback: number): number {
  * Coût diesel pour une distance, consommation par commerce (def. 6,4 L/100 km),
  * au prix du diesel du jour.
  */
-export function dieselCost(km: number, date: string, cfg: DieselConfig): DieselResult {
-  const pricePerLiter = dieselPrice(date, cfg.defaultPrice);
+export async function dieselCost(
+  km: number,
+  date: string,
+  cfg: DieselConfig
+): Promise<DieselResult> {
+  const pricePerLiter = await dieselPrice(date, cfg.defaultPrice);
   const liters = (Math.max(0, km) * cfg.consumption) / 100;
   return {
     km: Math.max(0, km),

@@ -6,10 +6,9 @@ avec une vue **journalière, hebdomadaire et mensuelle**.
 
 > Les commerçants peuvent voir d'un coup d'œil s'ils sont en bénéfice ou en perte.
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/faizabdelaziz4-a11y/Gestion)
-
-Déploiement en un clic (voir [`DEPLOY.md`](./DEPLOY.md)) — puis connexion propriétaire
-avec le mot de passe `admin` (à changer dans *Réglages*).
+**Stack** : Next.js · **PostgreSQL (Supabase)** · **Netlify**. Déploiement détaillé
+dans [`DEPLOY.md`](./DEPLOY.md). Connexion propriétaire avec le mot de passe `admin`
+(à changer dans *Réglages*).
 
 ## Fonctionnalités
 
@@ -67,29 +66,32 @@ npm run build && npm run start
 - **Propriétaire** : mot de passe par défaut `admin` (à changer dans *Réglages*).
 - **Travailleur** : code d'accès affiché sur sa fiche (onglet *Travailleurs*).
 
-### Tester en bêta
+### Développer en local
 
-1. **Sur votre machine** : `npm run dev` puis ouvrez http://localhost:3000.
-   Données dans `data/gestion.db` (SQLite local). Idéal pour essayer et améliorer.
-2. **En ligne (bêta partagée)** : déployez sur un hébergeur Node (Railway, Render,
-   un VPS…) avec `npm run build && npm run start`. Montez `data/` et
-   `public/uploads/` sur un volume persistant pour conserver les données.
-   Définissez `SESSION_SECRET` (et `ANTHROPIC_API_KEY` pour activer l'IA).
-3. **Brancher la caisse automatique** : récupérez le jeton du commerce dans
-   *Réglages*, puis faites pousser chaque jour :
-   ```bash
-   curl -X POST https://VOTRE-URL/api/ingest/<jeton> \
-     -H 'content-type: application/json' \
-     -d '{"date":"2026-06-28","ca":1200,"margin_pct":38,"cash_closing":650,"cash_opening":150}'
-   ```
+Il faut un **PostgreSQL** (local ou Supabase). Voir [`DEPLOY.md`](./DEPLOY.md).
+
+```bash
+export DATABASE_URL="postgres://user@localhost:5432/gestion"
+npm install
+npm run seed   # données de démo (2 commerces)
+npm run dev    # http://localhost:3000
+```
+
+Le schéma des tables se crée automatiquement au premier accès.
+
+### En ligne
+
+Déploiement **Netlify + Supabase** — guide pas à pas dans [`DEPLOY.md`](./DEPLOY.md).
 
 ## Configuration
 
-| Variable d'env.      | Rôle                                                                 |
-| -------------------- | ------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`  | Active la lecture IA des photos (compteur km, planning). Optionnel. |
-| `DB_PATH`            | Chemin du fichier SQLite (défaut `data/gestion.db`).                |
-| `SESSION_SECRET`     | Sel pour la signature des sessions.                                 |
+| Variable d'env.         | Rôle                                                                     |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `DATABASE_URL`          | Connexion PostgreSQL / Supabase (pooler). **Requis.**                    |
+| `SUPABASE_URL`          | URL du projet Supabase (stockage des photos).                            |
+| `SUPABASE_SERVICE_KEY`  | Clé `service_role` Supabase (stockage des photos).                       |
+| `SESSION_SECRET`        | Secret de signature des sessions.                                        |
+| `ANTHROPIC_API_KEY`     | Active la lecture IA des photos (compteur km, planning). Optionnel.      |
 
 Sans `ANTHROPIC_API_KEY`, l'app reste **100 % fonctionnelle** : la lecture des
 photos bascule en **saisie manuelle**.
@@ -118,7 +120,7 @@ paramétrables. Pour un décompte officiel, référez-vous à votre secrétariat
 
 ```
 lib/
-  db.ts        Base SQLite (schéma + réglages)
+  db.ts        Base PostgreSQL (Supabase) — schéma auto + helpers
   payroll.ts   Paie belge net↔brut↔coût employeur (+ tests)
   diesel.ts    Coût diesel (6,4 L/100 km × prix du jour)
   time.ts      Heures, semaines ISO, agrégations

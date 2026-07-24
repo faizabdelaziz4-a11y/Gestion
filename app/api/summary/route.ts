@@ -9,5 +9,5 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const period = (sp.get("period") as "day" | "week" | "month") || "month";
   const date = sp.get("date") || isoDate(new Date());
-  return json(summary(biz.id, period, date));
+  return json(await summary(biz.id, period, date));
 }

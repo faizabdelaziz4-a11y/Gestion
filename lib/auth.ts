@@ -1,7 +1,7 @@
 /** Authentification simple : propriétaire (mot de passe) et travailleur (code d'accès). */
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
-import { db, getSetting } from "./db";
+import { sql, getSetting, ensureSchema } from "./db";
 
 const COOKIE = "gestion_session";
 
@@ -10,8 +10,7 @@ export type Session =
   | { role: "worker"; workerId: number; name: string };
 
 function secret(): string {
-  // Secret stable basé sur le mot de passe propriétaire + un sel d'environnement.
-  return (process.env.SESSION_SECRET || "") + "::" + getSetting("owner_password", "admin");
+  return process.env.SESSION_SECRET || "gestion-dev-secret-change-me";
 }
 
 function sign(payload: string): string {
@@ -56,16 +55,17 @@ export async function clearSession() {
 }
 
 /** Tente une connexion propriétaire. */
-export function checkOwnerPassword(password: string): boolean {
-  return password === getSetting("owner_password", "admin");
+export async function checkOwnerPassword(password: string): Promise<boolean> {
+  await ensureSchema();
+  return password === (await getSetting("owner_password", "admin"));
 }
 
 /** Tente une connexion travailleur via code d'accès. */
-export function findWorkerByCode(
+export async function findWorkerByCode(
   code: string
-): { id: number; name: string; poste: string } | null {
-  const row = db
-    .prepare("SELECT id, name, poste FROM workers WHERE access_code = ? AND active = 1")
-    .get(code.trim()) as { id: number; name: string; poste: string } | undefined;
-  return row ?? null;
+): Promise<{ id: number; name: string; poste: string } | null> {
+  await ensureSchema();
+  const rows = await sql`
+    SELECT id, name, poste FROM workers WHERE access_code = ${code.trim()} AND active = 1`;
+  return (rows[0] as { id: number; name: string; poste: string }) ?? null;
 }

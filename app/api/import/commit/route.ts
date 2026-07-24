@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/db";
+import { sql } from "@/lib/db";
 import { json, bad, requireOwnerBusiness, isResponse } from "@/lib/api";
 import { Field, toNumber, toIsoDate } from "@/lib/import";
 
@@ -12,25 +12,11 @@ export async function POST(req: NextRequest) {
   const mapping: Record<Field, string | null> = b.mapping || {};
   if (!mapping.date) return bad("La colonne Date doit être mappée");
 
-  const upRevenue = db.prepare(
-    `INSERT INTO revenue (business_id, date, ca, margin_pct, platform_ca, platform_rate, source, note)
-     VALUES (@business_id, @date, @ca, @margin_pct, @platform_ca, 0.17, 'import', NULL)
-     ON CONFLICT(business_id, date) DO UPDATE SET
-       ca = excluded.ca, margin_pct = excluded.margin_pct,
-       platform_ca = excluded.platform_ca, source = 'import'`
-  );
-  const upCash = db.prepare(
-    `INSERT INTO cash (business_id, date, opening, expected_cash, closing, source, note)
-     VALUES (@business_id, @date, @opening, @expected_cash, @closing, 'import', NULL)
-     ON CONFLICT(business_id, date) DO UPDATE SET
-       opening = excluded.opening, closing = excluded.closing, source = 'import'`
-  );
-
   let revCount = 0;
   let cashCount = 0;
   const errors: string[] = [];
 
-  const tx = db.transaction(() => {
+  await sql.begin(async (tx) => {
     for (const row of rows) {
       const date = toIsoDate(row[mapping.date!] || "");
       if (!date) {
@@ -38,28 +24,27 @@ export async function POST(req: NextRequest) {
         continue;
       }
       if (mapping.ca || mapping.platform_ca) {
-        upRevenue.run({
-          business_id: biz.id,
-          date,
-          ca: mapping.ca ? toNumber(row[mapping.ca] || "") : 0,
-          margin_pct: mapping.margin_pct ? toNumber(row[mapping.margin_pct] || "") : 0,
-          platform_ca: mapping.platform_ca ? toNumber(row[mapping.platform_ca] || "") : 0,
-        });
+        await tx`
+          INSERT INTO revenue (business_id, date, ca, margin_pct, platform_ca, platform_rate, source, note)
+          VALUES (${biz.id}, ${date}, ${mapping.ca ? toNumber(row[mapping.ca] || "") : 0},
+                  ${mapping.margin_pct ? toNumber(row[mapping.margin_pct] || "") : 0},
+                  ${mapping.platform_ca ? toNumber(row[mapping.platform_ca] || "") : 0}, 0.17, 'import', NULL)
+          ON CONFLICT (business_id, date) DO UPDATE SET
+            ca = excluded.ca, margin_pct = excluded.margin_pct,
+            platform_ca = excluded.platform_ca, source = 'import'`;
         revCount++;
       }
       if (mapping.cash_closing || mapping.cash_opening) {
-        upCash.run({
-          business_id: biz.id,
-          date,
-          opening: mapping.cash_opening ? toNumber(row[mapping.cash_opening] || "") : 0,
-          expected_cash: 0,
-          closing: mapping.cash_closing ? toNumber(row[mapping.cash_closing] || "") : 0,
-        });
+        await tx`
+          INSERT INTO cash (business_id, date, opening, expected_cash, closing, source, note)
+          VALUES (${biz.id}, ${date}, ${mapping.cash_opening ? toNumber(row[mapping.cash_opening] || "") : 0},
+                  0, ${mapping.cash_closing ? toNumber(row[mapping.cash_closing] || "") : 0}, 'import', NULL)
+          ON CONFLICT (business_id, date) DO UPDATE SET
+            opening = excluded.opening, closing = excluded.closing, source = 'import'`;
         cashCount++;
       }
     }
   });
-  tx();
 
   return json({ revCount, cashCount, errors: errors.slice(0, 20), total: rows.length });
 }

@@ -1,5 +1,5 @@
 /** Agrégation financière par commerce : main d'œuvre, diesel, charges, marge, bénéfice. */
-import { db, getBusiness, Business } from "./db";
+import { sql, getBusiness, Business } from "./db";
 import { compute, PayrollParams, Statut } from "./payroll";
 import { dieselCost, shiftKm, DieselConfig } from "./diesel";
 import { shiftHours, rangeFor, daysBetween } from "./time";
@@ -49,21 +49,19 @@ interface MonthCtx {
   brut: number;
 }
 
-/** Calculateur lié à un commerce (cache mensuel propre par instance). */
+/** Calculateur lié à un commerce (cache mensuel par instance). */
 class FinanceCalc {
   private monthCache = new Map<string, MonthCtx>();
   constructor(private b: Business) {}
 
-  private monthContext(worker: WorkerRow, month: string): MonthCtx {
+  private async monthContext(worker: WorkerRow, month: string): Promise<MonthCtx> {
     const key = `${worker.id}:${month}`;
     const cached = this.monthCache.get(key);
     if (cached) return cached;
 
-    const shifts = db
-      .prepare(
-        "SELECT start_time, end_time, break_minutes FROM shifts WHERE worker_id = ? AND substr(date,1,7) = ?"
-      )
-      .all(worker.id, month) as ShiftRow[];
+    const shifts = (await sql`
+      SELECT start_time, end_time, break_minutes FROM shifts
+      WHERE worker_id = ${worker.id} AND substr(date,1,7) = ${month}`) as unknown as ShiftRow[];
     const monthHours = shifts.reduce(
       (s, sh) => s + shiftHours(sh.start_time, sh.end_time, sh.break_minutes),
       0
@@ -86,25 +84,22 @@ class FinanceCalc {
     return ctx;
   }
 
-  private laborForDay(date: string) {
+  private async laborForDay(date: string) {
     const month = date.slice(0, 7);
-    const workers = db
-      .prepare("SELECT * FROM workers WHERE active = 1 AND business_id = ?")
-      .all(this.b.id) as WorkerRow[];
+    const workers = (await sql`
+      SELECT * FROM workers WHERE active = 1 AND business_id = ${this.b.id}`) as unknown as WorkerRow[];
     let cost = 0;
     const details: any[] = [];
     for (const w of workers) {
-      const dayShifts = db
-        .prepare(
-          "SELECT start_time, end_time, break_minutes FROM shifts WHERE worker_id = ? AND date = ?"
-        )
-        .all(w.id, date) as ShiftRow[];
+      const dayShifts = (await sql`
+        SELECT start_time, end_time, break_minutes FROM shifts
+        WHERE worker_id = ${w.id} AND date = ${date}`) as unknown as ShiftRow[];
       const dayHours = dayShifts.reduce(
         (s, sh) => s + shiftHours(sh.start_time, sh.end_time, sh.break_minutes),
         0
       );
       if (dayHours === 0) continue;
-      const ctx = this.monthContext(w, month);
+      const ctx = await this.monthContext(w, month);
       const share = ctx.monthHours > 0 ? dayHours / ctx.monthHours : 0;
       const dayCost = ctx.employerCost * share;
       cost += dayCost;
@@ -119,20 +114,20 @@ class FinanceCalc {
     return { cost, details };
   }
 
-  private dieselForDay(date: string) {
-    const shifts = db
-      .prepare(
-        `SELECT s.km_start, s.km_end, w.name FROM shifts s JOIN workers w ON w.id = s.worker_id
-         WHERE s.date = ? AND w.business_id = ? AND s.km_start IS NOT NULL AND s.km_end IS NOT NULL`
-      )
-      .all(date, this.b.id) as Array<ShiftRow & { name: string }>;
+  private async dieselForDay(date: string) {
+    const shifts = (await sql`
+      SELECT s.km_start, s.km_end, w.name FROM shifts s JOIN workers w ON w.id = s.worker_id
+      WHERE s.date = ${date} AND w.business_id = ${this.b.id}
+        AND s.km_start IS NOT NULL AND s.km_end IS NOT NULL`) as unknown as Array<
+      ShiftRow & { name: string }
+    >;
     let cost = 0;
     let km = 0;
     const details: any[] = [];
     for (const s of shifts) {
       const d = shiftKm(s.km_start, s.km_end);
       if (d <= 0) continue;
-      const r = dieselCost(d, date, dieselConfig(this.b));
+      const r = await dieselCost(d, date, dieselConfig(this.b));
       cost += r.cost;
       km += d;
       details.push({
@@ -146,10 +141,9 @@ class FinanceCalc {
     return { cost, km, details };
   }
 
-  private chargesForDay(date: string) {
-    const charges = db
-      .prepare("SELECT * FROM charges WHERE active = 1 AND business_id = ?")
-      .all(this.b.id) as Array<{
+  private async chargesForDay(date: string) {
+    const charges = (await sql`
+      SELECT * FROM charges WHERE active = 1 AND business_id = ${this.b.id}`) as unknown as Array<{
       label: string;
       category: string;
       kind: string;
@@ -170,24 +164,20 @@ class FinanceCalc {
     return { fixed, variable, details };
   }
 
-  private supplementsForDay(date: string): number {
-    const row = db
-      .prepare(
-        `SELECT COALESCE(SUM(s.amount),0) AS t FROM supplements s
-         JOIN workers w ON w.id = s.worker_id WHERE s.date = ? AND w.business_id = ?`
-      )
-      .get(date, this.b.id) as { t: number };
-    return row.t;
+  private async supplementsForDay(date: string): Promise<number> {
+    const rows = await sql`
+      SELECT COALESCE(SUM(s.amount),0)::float8 AS t FROM supplements s
+      JOIN workers w ON w.id = s.worker_id WHERE s.date = ${date} AND w.business_id = ${this.b.id}`;
+    return (rows[0]?.t as number) ?? 0;
   }
 
-  dayBreakdown(date: string): DayBreakdown {
+  async dayBreakdown(date: string): Promise<DayBreakdown> {
     // Un jour futur n'a pas encore de coûts : on ne projette pas de perte.
     if (date > todayStr()) return zeroDay(date);
-    const rev = db
-      .prepare(
-        "SELECT ca, margin_pct, platform_ca, platform_rate, source FROM revenue WHERE date = ? AND business_id = ?"
-      )
-      .get(date, this.b.id) as
+    const revRows = await sql`
+      SELECT ca, margin_pct, platform_ca, platform_rate, source FROM revenue
+      WHERE date = ${date} AND business_id = ${this.b.id}`;
+    const rev = revRows[0] as
       | {
           ca: number;
           margin_pct: number;
@@ -201,10 +191,10 @@ class FinanceCalc {
     const grossMargin = (ca * marginPct) / 100;
     const platformFee = (rev?.platform_ca ?? 0) * (rev?.platform_rate ?? 0.17);
 
-    const labor = this.laborForDay(date);
-    const diesel = this.dieselForDay(date);
-    const charges = this.chargesForDay(date);
-    const supplements = this.supplementsForDay(date);
+    const labor = await this.laborForDay(date);
+    const diesel = await this.dieselForDay(date);
+    const charges = await this.chargesForDay(date);
+    const supplements = await this.supplementsForDay(date);
     const totalCosts =
       labor.cost + diesel.cost + charges.fixed + charges.variable + supplements + platformFee;
 
@@ -273,25 +263,20 @@ export interface PeriodSummary {
   days: DayBreakdown[];
 }
 
-export function summary(
+export async function summary(
   businessId: number,
   period: "day" | "week" | "month",
   date: string
-): PeriodSummary {
-  const b = getBusiness(businessId);
+): Promise<PeriodSummary> {
+  const b = await getBusiness(businessId);
   if (!b) {
-    return {
-      period,
-      businessId,
-      start: date,
-      end: date,
-      totals: emptyTotals(),
-      days: [],
-    };
+    return { period, businessId, start: date, end: date, totals: emptyTotals(), days: [] };
   }
   const calc = new FinanceCalc(b);
   const { start, end } = rangeFor(period, date);
-  const days = daysBetween(start, end).map((d) => calc.dayBreakdown(d));
+  const days: DayBreakdown[] = [];
+  for (const d of daysBetween(start, end)) days.push(await calc.dayBreakdown(d));
+
   const totals = days.reduce((acc, d) => {
     acc.ca += d.ca;
     acc.grossMargin += d.grossMargin;
